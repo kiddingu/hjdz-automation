@@ -1,0 +1,32 @@
+# C++
+*.o
+*.lo
+*.la
+*.slo
+*.so
+*.dll
+*.a
+*.exe
+*.app
+*.i
+*.ii
+*.gch
+*.pch
+
+# Qt
+/build/
+/debug/
+/release/
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+Makefile*
+*.qm
+*.swp
+*~
