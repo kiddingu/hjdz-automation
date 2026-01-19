@@ -26,8 +26,9 @@
 class QWebEngineView;
 class QTextEdit;
 class QWidget;
-class GameWindowWatcher;
 class AutomationWorker; // 前置声明
+class TaskEditor;
+struct TaskDefinition;
 
 struct GameWindowCtx {
     QPointer<QWebEngineView>  view{};     // 该游戏窗口
@@ -54,6 +55,10 @@ private slots:
     void onStopAll();     // 全部停止
     void onRefreshAll();  // 全部刷新
     void onExecuteAll(const QString& planName); // 命令面板回调：对所有窗口执行
+
+    // 任务编辑器
+    void openTaskEditor(QWebEngineView* targetView = nullptr);  // nullptr = 全部窗口
+    void onRunScriptTask(const TaskDefinition& task);
 
     void registerGameWindow(QWebEngineView* view, QTextEdit* log, QWidget* tab);
     void unregisterGameWindow(QWebEngineView* view);
@@ -85,6 +90,10 @@ private:
     QHash<QWebEngineView*, GameWindowCtx> gameWindows_;
     QHash<QString, QWebEngineProfile*> profiles_; // key: qq号
     QWebEngineProfile* profileForQQ(const QString& qq);
+
+    // 任务编辑器
+    TaskEditor* taskEditor_ = nullptr;
+    QPointer<QWebEngineView> taskEditorTargetView_;  // 任务编辑器目标窗口 (nullptr = 全部)
 
     GameWindowCtx* ctxFor(QWebEngineView* v);
     GameWindowCtx& ensureCtx(QWebEngineView* v); // 若无则创建空 ctx（仅存 view）

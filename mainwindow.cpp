@@ -25,12 +25,14 @@
 #include <QListWidget>
 #include <QPixmap>
 #include <QImage>
+#include <QMenuBar>
 #include <opencv2/opencv.hpp>
 #include "mywebpage.h"
-#include "GameWindowWatcher.h"
 #include "AutomationPanel.h"
 #include "AutomationWorker.h"
 #include "SilentWebPage.h"
+#include "taskeditor.h"
+#include "taskmodel.h"
 #include <QStandardPaths>
 #include <QDir>
 #include <QWebEngineSettings>
@@ -141,6 +143,12 @@ void MainWindow::onExecuteAll(const QString& planName)
     if (plan.isEmpty()) {
         if (globalLogOutput)
             globalLogOutput->append(QStringLiteral("[提示] 未选择任何命令，已取消批量执行。"));
+        return;
+    }
+
+    // 处理特殊命令：打开任务编辑器
+    if (plan == QStringLiteral("__TASK_EDITOR__")) {
+        openTaskEditor();
         return;
     }
 
@@ -463,7 +471,7 @@ void MainWindow::openGameDialog() {
             if (openid.isEmpty() || openkey.isEmpty() || pfkey.isEmpty()) continue;
 
             int region = entry.region - 1; // 注意减1
-            QString finalUrl = QString("https://qqgame.app100616028.twsapp.com/"
+            QString finalUrl = QString("https://tankstorm-qqgame.sincetimes.com/"
                                        "?openid=%1&openkey=%2&pf=qqgame&pfkey=%3&region=%4&qz_ver=6&appcanvas=1&via=&abc=%5")
                                    .arg(openid, openkey, pfkey)
                                    .arg(region)
@@ -535,6 +543,11 @@ void MainWindow::openGameDialog() {
                 auto *dlg = new AutomationPanel(this);
                 dlg->setAttribute(Qt::WA_DeleteOnClose, true);
                 connect(dlg, &AutomationPanel::commandChosen, this, [=](const QString& plan){
+                    // 处理特殊命令：打开任务编辑器（只针对当前窗口）
+                    if (plan == QStringLiteral("__TASK_EDITOR__")) {
+                        openTaskEditor(gameView);  // 传入当前窗口
+                        return;
+                    }
                     if (gameLog) gameLog->append(QStringLiteral("[执行] %1").arg(plan));
                     startAutomationFor(gameView, gameLog, plan);
                 });
@@ -1132,4 +1145,90 @@ void MainWindow::emitLogToGameTab(QTextEdit *tab, const QString &text) {
     return profile;
 }
 
+// 打开任务编辑器
+// targetView: 指定目标窗口，nullptr 表示针对全部窗口
+void MainWindow::openTaskEditor(QWebEngineView* targetView)
+{
+    if (!taskEditor_) {
+        taskEditor_ = new TaskEditor(this);
+        connect(taskEditor_, &TaskEditor::runTaskRequested,
+                this, &MainWindow::onRunScriptTask);
+    }
 
+    // 保存目标窗口 (nullptr = 全部窗口)
+    taskEditorTargetView_ = targetView;
+
+    // 设置游戏视图用于截图
+    if (targetView) {
+        // 如果有指定目标窗口，使用它
+        taskEditor_->setGameView(targetView);
+    } else if (!gameWindows_.isEmpty()) {
+        // 否则使用第一个窗口
+        auto it = gameWindows_.begin();
+        if (it->view) {
+            taskEditor_->setGameView(it->view);
+        }
+    }
+
+    taskEditor_->show();
+    taskEditor_->raise();
+    taskEditor_->activateWindow();
+
+    QString targetDesc = targetView ? QStringLiteral("当前窗口") : QStringLiteral("全部窗口");
+    if (globalLogOutput) {
+        globalLogOutput->append(QStringLiteral("[任务编辑器] 已打开可视化任务编辑器 (目标: %1)").arg(targetDesc));
+    }
+}
+
+// 执行脚本任务
+void MainWindow::onRunScriptTask(const TaskDefinition& task)
+{
+    if (gameWindows_.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("错误"),
+                             QStringLiteral("没有可用的游戏窗口"));
+        return;
+    }
+
+    // 检查是否有指定的目标窗口
+    QWebEngineView* targetView = taskEditorTargetView_.data();
+
+    int launched = 0;
+    for (auto &ctx : gameWindows_) {
+        if (!ctx.view || !ctx.log) continue;
+
+        // 如果指定了目标窗口，只执行该窗口
+        if (targetView && ctx.view != targetView) {
+            continue;  // 跳过非目标窗口
+        }
+
+        // 如果该窗口已有任务在跑，先请求停止
+        if (ctx.active) {
+            ctx.log->append(QStringLiteral("[脚本任务] 检测到正在运行的任务，先停止。"));
+            stopAutomationFor(ctx.view, ctx.log);
+        }
+
+        // 重置停止令牌（重要！stopAutomationFor 会设置 cancelled=true）
+        if (!ctx.stop) ctx.stop = QSharedPointer<StopToken>::create();
+        ctx.stop->cancelled.store(false, std::memory_order_relaxed);
+
+        // 确保线程和worker已创建
+        ensureThreadAndWorker(ctx);
+
+        ctx.log->append(QStringLiteral("[脚本任务] 开始执行：%1").arg(task.name));
+        ctx.active = true;
+        ctx.lastActive = QDateTime::currentDateTime();
+
+        // 通过信号调用 worker 的 runScriptTask
+        QMetaObject::invokeMethod(ctx.worker, "runScriptTask",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(TaskDefinition, task));
+        ++launched;
+    }
+
+    QString targetDesc = targetView ? QStringLiteral("指定窗口") : QStringLiteral("全部窗口");
+    if (globalLogOutput) {
+        globalLogOutput->append(
+            QStringLiteral("[脚本任务] 已向 %1 (%2个) 下发任务：%3")
+                .arg(targetDesc).arg(launched).arg(task.name));
+    }
+}

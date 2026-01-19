@@ -12,6 +12,8 @@
 class QWebEngineView;
 struct StopToken;
 class AWToolbox;
+class ScriptRunner;
+struct TaskDefinition;
 class AutomationWorker : public QObject
 {
     Q_OBJECT
@@ -31,6 +33,9 @@ public slots:
     // 统一入口：根据 planName 选择一条任务序列并执行
     void runTask(const QString& planName);
 
+    // 执行脚本任务
+    void runScriptTask(const TaskDefinition& task);
+
 public:
     // === 基础能力 ===
     bool shouldStop(const char* where) const;       // GUI 线程截图
@@ -47,6 +52,7 @@ private:
     QPointer<QWebEngineView> view_;
     QSharedPointer<StopToken> stop_;
     std::unique_ptr<AWToolbox> toolbox_;
+    std::unique_ptr<ScriptRunner> scriptRunner_;
 
 
     bool runTask_NationalContest();

@@ -4,9 +4,12 @@
 #include <QFile>
 #include <QDebug>
 #include "mainwindow.h"
+#include "taskmodel.h"
 
 int main(int argc, char *argv[])
 {
+    // 注册自定义类型，用于信号槽跨线程传递
+    qRegisterMetaType<TaskDefinition>("TaskDefinition");
     // 0) 关掉 Chromium/QtWebEngine 控制台刷屏（先设置环境变量）
     QByteArray quietFlags = "--disable-logging --log-level=3";
     qputenv("QT_LOGGING_RULES", "qt.webengine.*=false");

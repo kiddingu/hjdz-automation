@@ -106,9 +106,21 @@ QWidget* AutomationPanel::makeSpecialGroup() {
     b->setObjectName(QStringLiteral("special_开卡国战"));
     b->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     QFont f = b->font(); f.setBold(true); b->setFont(f);
-
     connect(b, &QPushButton::clicked, this, &AutomationPanel::onSpecialClicked);
     h->addWidget(b);
+
+    // 自定义任务按钮
+    QPushButton *customBtn = new QPushButton(tr("自定义任务"), box);
+    customBtn->setObjectName(QStringLiteral("special_自定义任务"));
+    customBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    QFont cf = customBtn->font(); cf.setBold(true); customBtn->setFont(cf);
+    customBtn->setStyleSheet("QPushButton { background-color: #2196F3; color: white; }");
+    connect(customBtn, &QPushButton::clicked, [this]() {
+        emit commandChosen(QStringLiteral("__TASK_EDITOR__"));
+        accept();
+    });
+    h->addWidget(customBtn);
+
     return box;
 }
 

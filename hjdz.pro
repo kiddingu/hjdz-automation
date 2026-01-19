@@ -14,20 +14,26 @@ SOURCES += \
     automationworker.cpp \
     main.cpp \
     mainwindow.cpp \
-    AutomationWorker.cpp \
-    AutomationPanel.cpp
+    taskmodel.cpp \
+    scriptrunner.cpp \
+    screencapture.cpp \
+    taskeditor.cpp \
+    stepwidget.cpp
 
 HEADERS += \
     SilentWebPage.h \
     StopToken.h \
     automationpanel.h \
     automationworker.h \
+    fsm_framework.h \
     imgdsl_qt.h \
     mainwindow.h \
     mywebpage.h \
-    AutomationWorker.h \
-    AutomationPanel.h \
-    SilentWebPage.h
+    taskmodel.h \
+    scriptrunner.h \
+    screencapture.h \
+    taskeditor.h \
+    stepwidget.h
 
 # Use UTF-8 for MSVC so Chinese strings are safe
 QMAKE_CXXFLAGS += /utf-8

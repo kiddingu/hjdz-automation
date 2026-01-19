@@ -1,5 +1,7 @@
 #include "AutomationWorker.h"
 #include "StopToken.h"
+#include "scriptrunner.h"
+#include "taskmodel.h"
 
 #include <QWebEngineView>
 #include <QCoreApplication>
@@ -347,6 +349,34 @@ void AutomationWorker::runTask(const QString& planName)
     } else {
         // 您可以提供更详细的失败原因
         emit aborted(QString("任务执行失败: %1").arg(planName));
+    }
+}
+
+// 执行脚本任务
+void AutomationWorker::runScriptTask(const TaskDefinition& task) {
+    imgdsl::set_toolbox(toolbox_.get());
+    toolbox_->setTaskContext(task.name);
+
+    // 创建脚本执行器
+    if (!scriptRunner_) {
+        scriptRunner_ = std::make_unique<ScriptRunner>(this);
+
+        // 连接信号
+        connect(scriptRunner_.get(), &ScriptRunner::log,
+                this, &AutomationWorker::log);
+        connect(scriptRunner_.get(), &ScriptRunner::stepStarted,
+                [this](const QString& stepId, const QString& desc) {
+                    emit log(QStringLiteral("[脚本] 执行: %1 - %2").arg(stepId, desc));
+                });
+    }
+
+    // 执行任务
+    bool success = scriptRunner_->execute(task);
+
+    if (success) {
+        emit finished(task.name);
+    } else {
+        emit aborted(QStringLiteral("脚本任务执行失败: %1").arg(task.name));
     }
 }
 // --- 任务函数占位符实现 ---
